@@ -1,0 +1,21 @@
+service:
+  docker:
+    leader: True
+    files:
+      /etc/systemd/system/docker.service.d/override.conf:
+      /etc/default/docker:
+  mysql:
+    docker:
+      image: mysql
+      tag: 5.7
+      replicas: global
+    files:
+      /var/lib/mysql:
+        source: directory
+      /opt/callowayart-web:
+        source: git@github.com:callowaylc/callowayaryt-web
+
+package:
+  dpkg:
+    docker-engine:
+      source: https://apt.dockerproject.org/repo/pool/main/d/docker-engine/docker-engine_1.13.1-0~ubuntu-xenial_amd64.deb

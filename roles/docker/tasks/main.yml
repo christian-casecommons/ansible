@@ -1,0 +1,94 @@
+# Ensure login to dockerhub and configured docker daemon
+---
+# Ensure login to dockerhub and configured docker daemon
+---
+- name: logs into dockerhub
+  shell: |
+      docker login \
+        -u {{ lookup('env', DOCKER_USERNAME) }} \
+        -p {{ lookup('env', DOCKER_PASSWORD) }}
+
+- name: starts swarm manager
+  shell: |
+      if !docker info 2>/dev/null | grep -i swarm | grep inactive; then
+        docker swarm init
+      fi
+  when: "{{ service.docker.leader|default(False) }}"
+
+- name: creates swarm overlay networks
+  shell: |
+      {% for name, attributes in (service|default({})).iteritems() %}
+      {% if attributes.docker|default(False) %}
+        # check if network exists
+        if ! docker network inspect {{ name }}; then
+          docker network create {{ name }} \
+            -d overlay \
+            --subnet {{ attributes.subnet }}
+        fi
+      {% endif %}
+      {% endfor %}
+
+- name: joins swarm managers
+  shell: |
+      # grab join worker command
+      cmd=$(
+        docker \
+          -H tcp://{{ service.docker_swarm.host }}:{{ service.docker_swarm.host }} \
+            swarm join-token worker \
+        | tail -n +3
+      )
+      eval "$cmd"
+  when: "{{ service.docker.leader is defined and
+            service.docker.leader == False }}"
+
+- name: creates mount points for swarm services
+  shell: |
+      {% for name, attributes in (service|default({})).iteritems() %}
+      {% if attributes.docker|default(False) %}
+        d=/docker/{{ name }}
+        mkdir -p $d
+
+        # symlink all listed files for service into mount point
+        {% for path, _ in (attributes.files|default({})).iteritems() %}
+          mkdir -p `dirname $d/{{ path }}`
+          rm -rf $d/{{ path }}
+          ln -s {{ path }} $d/{{ path }}
+        {% endfor %}
+      {% endif %}
+      {% endfor %}
+
+- name: initiates swarm services
+  shell: |
+      {% for name, attributes in (service|default({})).iteritems() %}
+      {% if attributes.docker|default(False) %}
+        # determine whether we are updating an existing service
+        # or creating new
+        if docker service inspect {{ name }} >/dev/null 2>&1; then
+          docker service update \
+            --image {{ attributes.docker.image }}:{{ attributes.docker.tag }} \
+            {% if attributes.docker.replicas|default(False) != "global" %}
+              --replicas {{ attributes.docker.replicas|default(0) }} \
+            {% endif %}
+            {{ name }}
+
+        else
+          docker service create \
+            --name {{ name }} \
+            {% if attributes.docker.replicas|default(False) == "global" %}
+            --mode global \
+            {% else %}
+            --replicas {{ attributes.docker.replicas|default(0) }} \
+            {% endif %}
+            {% for path, _ in (attributes.files|default({})).iteritems() %}
+              --mount type=bind,source=/docker/{{ name }}/{{ path }},destination={{ path }} \
+            {% endfor %}
+            {{ attributes.docker.image }}:{{ attributes.docker.tag }}
+        fi
+      {% endif %}
+      {% endfor %}
+  when: "{{ service.docker.leader|default(False) }}"
+
+- name: manages docker service state
+  service:
+    name: docker
+    state: "{{ service.docker.state|default('reloaded') }}"

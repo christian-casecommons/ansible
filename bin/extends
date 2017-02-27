@@ -1,0 +1,182 @@
+#!/usr/bin/env ruby
+# Provides extended behavior to ansible run
+#
+# usage:
+# bundle exec ./extends ansible-playbook ./playbooks/yada.yml ...
+
+require "optparse"
+require "json"
+require "shellwords"
+require "inifile"
+require "fileutils"
+require "yaml"
+require "deep_merge"
+
+## methods ######################################
+
+# retreives ansible command
+def command
+  @command ||= begin
+    start = ARGV.find_index { | value | value =~ /^ansible/ }
+    Shellwords.join( ARGV[ start .. -1 ] )
+  end
+end
+
+# parses ansible[-playbook] flags
+def options
+  @options ||= begin
+    options = { }
+
+    # define our options parser and flags we are explicitly
+    # looking for
+    parser = OptionParser.new do |opts|
+      opts.on("-iV", "--inventory=V") do |v|
+        options[:inventory ] = v
+      end
+      opts.on("-fV", "--facts=V") do |v|
+        options[:facts ] = v
+      end
+    end
+
+    # remove options that haven't been explicitly specified
+    remaining = []
+    arguments = ARGV.dup
+
+    while !arguments.empty?
+      begin
+        head = arguments.shift
+        remaining.concat(parser.parse([ head ]))
+      rescue OptionParser::InvalidOption
+        remaining << head
+        retry
+      end
+    end
+
+    # finally return options to caller
+    options
+  end
+end
+
+# retrieves all hosts by exexuting dry-run ansible command
+# and parsing targeted hosts
+def hosts
+  @hosts ||= begin
+    result = bash "#{ command } --list-hosts --check"
+    start = ( result.index /hosts.+$/ ) + ( result.match /hosts.+$/ )[0].length + 1
+
+    ( result[ start .. -1 ].scan /[\S]+/ )
+  end
+end
+
+# identify the groups a host belongs to
+def groups host
+  @ini ||= begin
+    # we need to modify ansible config to have '= true'
+    # to be parsed by ini parser
+    content = ( File.read options[:inventory] ).gsub /^(([0-9a-z]).+$)/i, "\\1 = true"
+    File.write f = "#{ working_directory }/hosts.parseable", content
+    IniFile.load f
+  end
+
+  # find all members of hosts "family"
+  family = lambda do | target |
+    parents = [ target ]
+    @ini.each_section do | section |
+      @ini[section].each do | key, _ |
+        if key =~ /^#{ target }(\s|$)/
+          parents += family.call( section.sub /\:children/, "" )
+        end
+      end
+    end
+    return parents
+  end
+
+  # finally, lets sort members by their order of appearance
+  # in the hosts file
+  members = family.call host
+  sorted = [ ]
+  @ini.each_section do | section |
+    section = section.sub /\:children/, ""
+    sorted << section if members.include? section
+  end
+
+  sorted
+end
+
+# determines a hosts configurable hierarchal data-structure
+def facts host
+  dictionary = { }
+  directory = File.dirname options[:inventory]
+
+  pick = proc do | path |
+    if  File.exists?( f = "#{ path }" ) ||
+        File.exists?( f = "#{ path }.yml" ) ||
+        File.exists?( f = "#{ path }.yaml" )
+      f
+    end
+  end
+
+  # iterate through all possible group candidates and perform group
+  # merges
+  canidates = %w{ all } + groups( host )
+  canidates.each do | candidate |
+    if f = pick.call( "#{ directory }/group_vars/#{ candidate }" )
+      dictionary.deep_merge!( YAML.load File.read( f ), overwite_arrays: true )
+    end
+  end
+
+  # finally, determine if host_var exists and perform final merge
+  if f = pick.call( "#{ directory}/host_vars/#{ host }" )
+    dictionary.deep_merge!( YAML.load File.read( f ), overwite_arrays: true )
+  end
+
+  dictionary
+end
+
+def bash cmd
+  %x{ bash --login -c "#{ cmd }" }
+end
+
+def working_directory
+  @working_directory ||= begin
+    "/tmp/.extends-ansible-#{ Time.now.to_i }"
+  end
+end
+
+## main #########################################
+
+def main arguments
+  # make sure working directory exists
+  FileUtils::mkdir_p "#{ working_directory }/host_vars"
+
+  # fork out so that we can perform cleanup work in case
+  # process fails
+  fork do
+    if options[:facts]
+      puts ( facts options[:facts] ).to_yaml
+
+    # otherwise our default behavior is to execute ansible command
+    else
+      # write a hierarchal config per host
+      hosts.each do | host |
+        File.write "#{ working_directory }/host_vars/#{ host }", facts( host ).to_yaml
+      end
+
+      # cp inventory to working directory
+      FileUtils.cp "#{ options[:inventory] }", "#{ working_directory }"
+
+      # finally, we execute ansible command, but update the path for our inventory file
+      # to working directory
+      exec "#{ command } --inventory #{ working_directory }/hosts"
+    end
+  end
+  status = Process.wait
+
+  # perform cleanup work
+  FileUtils.rm_rf working_directory
+
+  # report status back to caller
+  status
+end
+
+exit main( ARGV )

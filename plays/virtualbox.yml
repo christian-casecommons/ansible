@@ -1,0 +1,11 @@
+---
+- name: A changement management playbook for virtualbox
+  hosts: "{{ __target__ | default('all') }}"
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  roles:
+    - casecommons.packages
+    - casecommons.files
+    - casecommons.virtualbox

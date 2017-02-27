@@ -1,0 +1,15 @@
+---
+- name: installs consul binary
+  shell: unzip ./consul.zip
+  args:
+    chdir: {{ service.consul.home }}
+
+- name: runs consul server
+  shell: |
+      mkdir ./logs ./pids
+      kill -2 `cat ./logs/vault.pid 2>/dev/null` 2>/dev/null
+      kill -2 `cat ./logs/consul.pid 2>/dev/null` 2>/dev/null
+      nohup vault server -config=./config.hcl > /var/log/vault.vcl 2>&1 &
+      echo $! > ./pids/vault.pid
+  args:
+    chdir: {{ service.consul.home }}

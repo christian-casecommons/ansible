@@ -1,0 +1,27 @@
+# Responsible user orchestration
+---
+- name: creates groups defined in users
+  group: |
+      state=present
+      name={{ item.1 }}
+  with_subelements:
+    - "{{ users|default({}) }}"
+    - groups
+
+- name: creates user
+  user: |
+      name={{ item.key }}
+      comment={{ item.value.comment }}
+      groups={{ item.value.groups|join(',') }}
+      uid={{ item.value.uid }}
+      state={{ item.value.state }}
+      shell=/bin/bash
+  with_dict: "{{ users|default({}) }}"
+  ignore_errors: True
+
+- name: adds users authorized keys
+  authorized_key: |
+      user={{ item.key }}
+      key="{{ item.value.ssh_keys|join("\n") }}"
+      exclusive=yes
+  with_dict: "{{ users|default({}) }}"

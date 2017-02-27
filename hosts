@@ -1,0 +1,31 @@
+## DIST ###################################################
+
+[ubuntu:children]
+web
+
+[mac:children]
+
+## OS #####################################################
+
+[osx:children]
+
+[trusty:children]
+
+[xenial:children]
+web
+
+## ROLES ##################################################
+
+[web:children]
+migrated
+
+## CLUSTER ################################################
+
+[migrated]
+migrated-0 ansible_host=52.90.55.94 ansible_user=ubuntu
+
+## ENV ####################################################
+
+[staging]
+[development]
+[production]

@@ -1,0 +1,21 @@
+---
+- name: Bootstraps an environment to be accessible to casebook change management systems
+  hosts: "{{ __target__ | default('all') }}"
+  gather_facts: no
+  become: yes
+  become_user: root
+  become_method: sudo
+  pre_tasks:
+    - name: update apt cache
+      raw: sudo apt update --fix-missing
+    - name: installs python
+      raw: sudo apt install -y python-minimal python-pip
+    - name: installs system ruby
+      raw: sudo pip install boto
+    - name: installs system ruby
+      raw: sudo apt install -y ruby ruby-dev
+    - action: setup
+
+  roles:
+    - files
+    - users

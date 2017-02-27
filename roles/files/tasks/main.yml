@@ -1,0 +1,75 @@
+# Deploys files to a given target
+---
+# NOTE: ansible can't manage a nested dict:dict:list, so we are using
+# ruby to convert to a flattened list
+- name: converts service files to a form that ansible can iterate over
+  shell: |
+      ruby -e "
+        require 'json'
+        files = [ ]
+        JSON.parse(ARGV[0]).each do | service, attributes |
+          attributes['files'] ||= { }
+          attributes['files'].each do | path, a |
+            a ||= { }
+            a['path'] = path
+            a['service'] = service
+            files << a
+          end
+        end
+
+        puts files.to_json
+      " '{{ service|default({})|to_json }}'
+  register: outs
+- set_fact:
+    files: "{{ outs.stdout|from_json }}"
+
+- name: installs repositories from git
+  git:
+    repo: "{{ item.source }}"
+    dest: "{{ item.path }}"
+    version: "{{ item.sha|default('master') }}"
+    force: yes
+    accept_hostkey: yes
+  with_items: "{{ files }}"
+  when: item.source|default(False) and "git" in item.source
+
+- name: installs directories
+  file:
+    state: directory
+    path: "{{ item.path }}"
+  with_items: "{{ files }}"
+  when: item.source|default(False) and "directory" in item.source
+
+- name: ensures target directories exist
+  shell: |
+      target=`dirname {{ item.path }}`
+      mkdir -p $target
+      chmod {{ item.mode|default('0755') }} $target
+  with_items: "{{ files }}"
+
+- name: installs files from s3
+  s3:
+    bucket: "{{ item.source|regex_replace('^s3://(.+?)/.+$', '\\1') }}"
+    object: "{{ item.source|regex_replace('^s3://.+?(/.+)$', '\\1') }}"
+    dest: "{{ item.path }}"
+    mode: get
+    region: "{{ aws.region }}"
+  with_items: "{{ files }}"
+  when: item.source|default(False) and "s3" in item.source
+
+- name: installs files via http
+  get_url:
+    url: "{{ item.source }}"
+    dest: "{{ item.path }}"
+    mode: "{{ item.mode|default(0644) }}"
+  with_items: "{{ files }}"
+  when: item.source|default(False) and "http" in item.source
+
+- name: installs files from repository
+  template:
+    src: "{{ role_path|dirname }}/{{ item.service }}/templates/{{ item.path}}"
+    dest: "{{ item.path }}"
+    mode: "{{ item.mode|default(0644) }}"
+    force: yes
+  with_items: "{{ files }}"
+  when: item.source is not defined

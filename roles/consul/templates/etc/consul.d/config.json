@@ -1,0 +1,17 @@
+{
+  "bootstrap_expect": 3,
+  "bootstrap": "{{ service.consul.bootstrap }}",
+  "server": "{{ service.consul.server }}",
+  "datacenter": "dc-0",
+  "data_dir": "/var/consul",
+  "log_level": "INFO",
+  "enable_syslog": false,
+  "encrypt": "{{ lookup('env','TOKEN')|md5 }}"
+  {% if not service.consul.bootstrap|default(False) %}
+    "retry_join": [
+    {% for host in {{ service.consul.nodes|default([]) %}
+      "{{ host }}"{%- if not loop.last %},{%- endif %}
+    {% endfor %}
+    ]
+  {% endif %}
+}

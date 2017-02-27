@@ -1,0 +1,9 @@
+---
+- name: A changement management playbook for deploying configuration files
+  hosts: "{{ __target__ | default('all') }}"
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  roles:
+    - files

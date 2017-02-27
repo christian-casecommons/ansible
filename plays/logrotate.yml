@@ -1,0 +1,10 @@
+---
+- name: A generic playbook for logrotation management
+  hosts: "{{ __target__ | default('all') }}"
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  roles:
+    - casecommons.files
+    - casecommons.logrotate

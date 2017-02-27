@@ -1,0 +1,11 @@
+# Sets-up a virtual box install
+---
+- set_fact:
+    directory: "{{ service.virtualbox.home }}"
+
+- name: launches virtualbox via vagrant
+  shell: |
+      if [ -f {{ service.virtualbox.home }}/Vagrantfile ]; then
+        cd {{ directory }}
+        vagrant up
+      fi
