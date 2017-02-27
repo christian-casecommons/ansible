@@ -6,7 +6,7 @@
   become_method: sudo
 
   roles:
-    - packages
-    - secrets
-    - files
+    #- packages
+    #- secrets
+    #- files
     - docker

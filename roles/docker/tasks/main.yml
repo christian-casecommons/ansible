@@ -1,16 +1,13 @@
-# Ensure login to dockerhub and configured docker daemon
----
-# Ensure login to dockerhub and configured docker daemon
 ---
 - name: logs into dockerhub
   shell: |
       docker login \
-        -u {{ lookup('env', DOCKER_USERNAME) }} \
-        -p {{ lookup('env', DOCKER_PASSWORD) }}
+        -u {{ lookup('env', 'DOCKER_USERNAME') }} \
+        -p {{ lookup('env', 'DOCKER_PASSWORD') }}
 
 - name: starts swarm manager
   shell: |
-      if !docker info 2>/dev/null | grep -i swarm | grep inactive; then
+      if docker info 2>/dev/null | grep -i swarm | grep inactive; then
         docker swarm init
       fi
   when: "{{ service.docker.leader|default(False) }}"
@@ -20,24 +17,27 @@
       {% for name, attributes in (service|default({})).iteritems() %}
       {% if attributes.docker|default(False) %}
         # check if network exists
-        if ! docker network inspect {{ name }}; then
+        if ! docker network inspect {{ name }} >/dev/null 2>&1; then
           docker network create {{ name }} \
             -d overlay \
             --subnet {{ attributes.subnet }}
         fi
       {% endif %}
       {% endfor %}
+  when: "{{ service.docker.leader|default(False) }}"
 
 - name: joins swarm managers
   shell: |
       # grab join worker command
-      cmd=$(
-        docker \
-          -H tcp://{{ service.docker_swarm.host }}:{{ service.docker_swarm.host }} \
-            swarm join-token worker \
-        | tail -n +3
-      )
-      eval "$cmd"
+      if docker info 2>/dev/null | grep -i swarm | grep inactive; then
+        cmd=$(
+          docker \
+            -H tcp://{{ service.docker_swarm.host }}:{{ service.docker.port }} \
+              swarm join-token worker \
+          | tail -n +3
+        )
+        eval "$cmd"
+      fi
   when: "{{ service.docker.leader is defined and
             service.docker.leader == False }}"
 
@@ -49,7 +49,7 @@
         mkdir -p $d
 
         # symlink all listed files for service into mount point
-        {% for path, _ in (attributes.files|default({})).iteritems() %}
+        {% for path in attributes.docker.mounts|default([]) %}
           mkdir -p `dirname $d/{{ path }}`
           rm -rf $d/{{ path }}
           ln -s {{ path }} $d/{{ path }}
@@ -59,6 +59,7 @@
 
 - name: initiates swarm services
   shell: |
+      true
       {% for name, attributes in (service|default({})).iteritems() %}
       {% if attributes.docker|default(False) %}
         # determine whether we are updating an existing service
@@ -74,13 +75,19 @@
         else
           docker service create \
             --name {{ name }} \
+            --network {{ name }} \
+            --publish {{{ attributes.docker.port|default(attributes.port) }} \
+            --endpoint-mode vip \
             {% if attributes.docker.replicas|default(False) == "global" %}
             --mode global \
             {% else %}
             --replicas {{ attributes.docker.replicas|default(0) }} \
             {% endif %}
-            {% for path, _ in (attributes.files|default({})).iteritems() %}
+            {% for path in attributes.docker.mounts|default([]) %}
               --mount type=bind,source=/docker/{{ name }}/{{ path }},destination={{ path }} \
+            {% endfor %}
+            {% for key, value in (attributes.env|default({})).iteritems() %}
+              --env {{ key }}:{{ value }} \
             {% endfor %}
             {{ attributes.docker.image }}:{{ attributes.docker.tag }}
         fi

@@ -1,19 +1,27 @@
 service:
   docker:
+    port: 2375
     leader: True
     files:
       /etc/systemd/system/docker.service.d/override.conf:
       /etc/default/docker:
   mysql:
+    host: 172.18.0.3
+    port: 3306
+    subnet: 172.10.1.0/24
     docker:
       image: mysql
       tag: 5.7
       replicas: global
+      mounts:
+        - /var/lib/mysql
     files:
       /var/lib/mysql:
         source: directory
       /opt/callowayart-web:
         source: git@github.com:callowaylc/callowayaryt-web
+    env:
+      MYSQL_ALLOW_EMPTY_PASSWORD: True
 
 package:
   dpkg:
