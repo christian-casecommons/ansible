@@ -76,7 +76,7 @@
           docker service create \
             --name {{ name }} \
             --network {{ name }} \
-            --publish {{{ attributes.docker.port|default(attributes.port) }} \
+            --publish {{ attributes.docker.port|default(attributes.port) }} \
             --endpoint-mode vip \
             {% if attributes.docker.replicas|default(False) == "global" %}
             --mode global \
@@ -87,7 +87,7 @@
               --mount type=bind,source=/docker/{{ name }}/{{ path }},destination={{ path }} \
             {% endfor %}
             {% for key, value in (attributes.env|default({})).iteritems() %}
-              --env {{ key }}:{{ value }} \
+              --env {{ key }}="{{ value }}" \
             {% endfor %}
             {{ attributes.docker.image }}:{{ attributes.docker.tag }}
         fi

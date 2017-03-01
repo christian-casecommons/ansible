@@ -19,17 +19,25 @@
 
   - name: preemptively runs dpkg configure to resolve conflicts
     shell: dpkg --configure -a
-    
+
   - name: executes caveats
     shell: "{{ item.value.caveat }}"
     with_dict: "{{ packages.apt|default({}) }}"
     when: item.value.caveat|default(False)
 
   - name: adds packages
-    package: |
-        name={{ item.key }}={{ item.value.version }}
-        state={{ item.value.state|default('present') }}
-        force=yes
+    shell: |
+        package={{ item.key }}
+        version={{ item.value.version|default('latest')
+          if item.value is mapping
+          else item.value
+        }}
+
+        cmd="apt install -y --force-yes $package"
+        if [ "$version" -ne "latest" ]; then
+          cmd="$cmd=$version"
+        fi
+        $cmd
     with_dict: "{{ packages.apt|default({}) }}"
 
   # TODO: add other source types besides http
