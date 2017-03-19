@@ -25,8 +25,7 @@ service:
 
 package:
   apt:
-    mysql-client-core-5.7:
-      version: latest
+    mysql-client-core-5.7: latest
   dpkg:
     docker-engine:
       source: https://apt.dockerproject.org/repo/pool/main/d/docker-engine/docker-engine_1.13.1-0~ubuntu-xenial_amd64.deb

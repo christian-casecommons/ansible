@@ -1,59 +1,19 @@
 ---
-- set_fact:
-    packages: "{{ package|default({}) }}"
+- name: converts service files to a form that ansible can iterate over
+  shell: |
+      ruby -e "
+        require 'json'
+        packages = ARGV.first
+        JSON.parse(packages).each do | type, targets |
+          targets.each do | package, attributes |
+            unless attributes.is_a? Hash
+              packages[type][package]["version"] = attributes
+            end
+          end
+        end
 
-- block:
-  - name: installs packages' gpg keys
-    apt_key: url={{ item.value.gpg }} id={{ item.value.id|default('') }}
-    with_dict: "{{ packages.apt|default({}) }}"
-    when: item.value.gpg is defined
-
-  - name: installs packages' repo urls
-    apt_repository: repo='{{ item.value.repo }}' state=present
-    with_dict: "{{ packages.apt|default({}) }}"
-    when: item.value.repo is defined
-
-  - name: updates apt cache
-    apt:  update_cache=yes
-    ignore_errors: True
-
-  - name: preemptively runs dpkg configure to resolve conflicts
-    shell: dpkg --configure -a
-
-  - name: executes caveats
-    shell: "{{ item.value.caveat }}"
-    with_dict: "{{ packages.apt|default({}) }}"
-    when: item.value.caveat|default(False)
-
-  - name: adds packages
-    shell: |
-        package={{ item.key }}
-        version={{ item.value.version|default('latest')
-          if item.value is mapping
-          else item.value
-        }}
-
-        cmd="apt install -y --force-yes $package"
-        if [ "$version" -ne "latest" ]; then
-          cmd="$cmd=$version"
-        fi
-        $cmd
-    with_dict: "{{ packages.apt|default({}) }}"
-
-  # TODO: add other source types besides http
-  - name: installs deb packages
-    apt:
-      deb: "{{ item.value.source }}"
-    with_dict: "{{ packages.dpkg|default({}) }}"
-  when: ansible_distribution in [ 'Ubuntu', 'Debian' ]
-
-- name: installs gems
-  gem: name={{ item.key }} version={{ item.value.version }} state={{ item.value.state|default('present') }}
-  with_dict: "{{ packages.gem|default({}) }}"
-
-- name: updates pip
-  shell: which pip >/dev/null && pip install --upgrade pip
-
-- name: installs pip packages
-  pip: name={{ item.key }} version={{ item.value.version }}
-  with_dict: "{{ packages.pip|default({}) }}"
+        puts packages.to_json
+      " '{{ package|default({})|to_json }}'
+  register: outs
+- debug:
+    msg: "{{ outs.stdout }}"

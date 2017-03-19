@@ -1,0 +1,5 @@
+# Defines config used by casecommons dynamic inventory
+---
+plugins:
+  - ec2.py
+  - inject.rb
