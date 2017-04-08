@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 release:
+	bundle install
 	# ensure system directory exists and remove and previous
 	# symlinks
 	mkdir -p ./host_vars
@@ -16,12 +17,13 @@ release:
 
 	# add ansible galaxy
 	mkdir -p ./vendors
-	-rm -rf /etc/ansible/vendors/*
+	-rm -rf ./vendors/*
 
 	# for the roles that are available, we install in the usual manner
 	# NOTE: this will NOT overwrite roles that are not available and were
 	# provided via s3 pull
-	-ansible-galaxy install \
+	test -f ./requirements.yml && ansible-galaxy install \
 		--ignore-errors \
 		-r ./requirements.yml \
-		--roles-path ./vendors
+		--roles-path ./vendors \
+			|| true
