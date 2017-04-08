@@ -10,3 +10,23 @@ users:
     ssh_keys:
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCtRoxF1WQdyyPIcghXFAPv9IKhvdgVMlybinoKzpn9BmQDbvhrUX+J55yC1E4iGnQKNCpLbkjNnxldXciUV3zFJHmhMKtPvr9bjuaRtvmfYMXV/ie3STR63Iap9oJdhgjKebjW1RinAFhFB/JxKyM7IZlNqyz/6LfxhEHkjU6cv6e1fZwg6Q6dJ5+nbiqm2ulzsAsIv+HNz5g5OlsYuLftLUZgAU99Dmoe9d9GQiSyUlj4gKpIpJrMf/9W3nxDQrGYT9uUFSIbyyLG1SIxLostP/ebaiJN17GfBolWHkb6xJ7Lr4+Rv+RzNEM/GboOf9vwNZMs6J277taTDVXXZT6wbb7pPJfEbWxaqfdtfBony9bOAL40SONmo5k9RTM20A0Yxp0vqd0bQz4avOAFFzufNyWg3JR2tuZvw21TRM2kD4yubxQLTTEFQa4CBz7wINnOc+frp0InL/tblxv0LA4TA1WBGQeXL1czGMCOsOdbAzkHvtmnUpK2RkerK02pRlkmZmjaPjk57+xH3q1PFPkw0uYepTg3Ltaz4W+fygduyReE0+s/meLiIYj320WDe4sKhyOcJVvdfp7Ie0KZDkZYivIusjjv1CiQ4qX37j2OqXBU3fcfpM/RQCIElryPC6yDDv3D4TR7VechvswAYbzZUulB8k6CSwJrL4z5DwU7eQ== ccalloway
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDArT76VybtzglrpqJilA8OTQNZ1NbdQxb1Z+KMiVVqp783P6FJd6veqGgfche4vHYo6yw2AUq2gNnKNmTqANx0Zu+hl+ydXbJS/NR14X3zj7QMAoE16zEfZdyqKm+AAtXZm/TmSCmDPH180pxgmdA12ZiaemIsU7aGMgeIZB/CMKcl/ZtM0Zao6gcsk+vjBOzE9GdSJNf7Jtu/ZLYXXucTFiGRUEf9rlbiBLZWWOhdm1VeecYjzVFjgUA5JhgSuIbUpla1n0jEQXQ37TruUABD2SOTXPCsOKUIZlgiz0z6k1AxBFDwSckHbfuiRg4stvQ7BlNxGP8mvfyCJw2WhlkfjCpLFkeWFk0YhWJ5NW4M3qtwVDhyyHjAgOozEc1xHx+OsSCvNCotuUOyuoMc/qP2Jbo5miUbLdU77cU88YlYk2oxViA81lnmy5oxBVjHt5AGLGfATXp7NNLKEcIC6ZjBM6iG3mFI1pLK/vzgSNm0mzmKgQSmHyQq/cloEnH3lCOkl3us800wb74Cx2zcW++uVH9UgHtPU5j+yptF4cHizPy22NwrDkBHa0gAr+6lcw/fwrwlP7LcGzMx/K6j7gR6oiu2W9m0kvFqB6Sja4pitcCJR1JZUg4RCUwSbjnnILw9HbHw7GQlz14yMXytN68FJCti3xaB7/WIDdX0wp4czw== github-callowaylc@work
+
+service:
+  nginx:
+    files:
+      /var/www/fs:
+        source: directory
+      /etc/nginx/sites-enabled/fs:
+    sites:
+      fs:
+        port: 6080
+        root: /var/www/fs
+        host: fs.purewhitesugar.se
+
+package:
+  apt:
+    nginx: 1.4.6-1ubuntu3.7
+
+log:
+  /var/log/nginx/fs.error.log:
+  /var/log/nginx/fs.access.log:

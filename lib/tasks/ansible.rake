@@ -44,35 +44,63 @@ end
 ## tasks ##################################################
 
 namespace :ansible do
+  desc "shows hosts associatd to a group pattern"
+  task :hosts, [ :pattern ] do | _, arguments |
+    logs "looking up hosts", pattern: arguments[:pattern]
+    begin
+      hosts = (command %{
+        ansible '#{ arguments[:pattern] }' \
+          -i#{ ENV["ANSIBLE_HOME"] || "/etc/ansible" }/hosts \
+          --list-hosts 2>/dev/null \
+          | tail -n+2
+      }).split
+    rescue => e
+      logs m = "failed to lookup hosts", error: e.message, pattern: arguments[:pattern]
+      abort m
+    end
+
+    if hosts.empty?
+      logs "failed to find hosts", hosts: hosts, pattern: arguments[:pattern]
+      abort
+    else
+      logs "found hosts", task: "ansible:hosts", hosts: hosts
+      puts hosts
+    end
+  end
+
   desc "shows hiera for host"
-  task :facts, [ :ip ] do | t, arguments |
+  task :facts, [ :ip, :json ] do | t, arguments |
+    logs "get facts for ip", ip: arguments[:ip], json: arguments[:json]
     ip = arguments[:ip] || %x{
       ip route get 1 | awk '{ print $NF; exit }'
     }
     home = ENV["ANSIBLE_HOME"] || "/etc/ansible"
 
     begin
-      puts File.read "#{ home }/host_vars/host-#{ ip }"
+      content = File.read "#{ home }/host_vars/host-#{ ip }"
     rescue => e
       logs "failed to open host file", file: "#{ home }/host_vars/host-#{ ip }"
       fail e
     end
+
+    content = ( YAML.load content ).to_json if arguments[:json]
+    puts content
   end
 
   desc "builds heira-complete facts for every host"
   task :build_facts, [ :path ] do | _, arguments |
     # path is containing dir for ansible hosts, config, vars, etc
-    path = arguments[:path] || "/etc/ansible"
+    path = arguments[:path] || ENV["ANSIBLE_HOME"] || "/etc/ansible"
     logs "building facts", path: path
 
     # write dynamic inventory to path or default
     content = %x{
-      ./plugins/hieransible/ec2.py \
-        | HOSTS_FILE=./hosts ./plugins/hieransible/inject.rb --ini
+      nodes=`./plugins/hieransible/ec2.py`
+      echo $nodes | HOSTS_FILE=./hosts ./plugins/hieransible/inject.rb --ini
     }
 
     if $?.success?
-      File.write "#{ path }/hosts", content
+      File.write "#{ path }/hosts.compiled", content
       logs "wrote host file", path: "#{ path }/hosts",
                             content: content.gsub( /\n/, "" )
     else
@@ -80,7 +108,7 @@ namespace :ansible do
     end
 
     # get all hosts
-    content = File.read "#{ path }/hosts"
+    content = File.read "#{ path }/hosts.compiled"
     hosts = ( content.scan /^([\w\.-]+?)\s/ )
       .flatten
       .uniq

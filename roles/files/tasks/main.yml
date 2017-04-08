@@ -4,6 +4,9 @@
 # ruby to convert to a flattened list
 - name: converts service files to a form that ansible can iterate over
   shell: |
+      service=$( echo `cat <<EOF
+        {{ service|default({})|to_json }}
+      `)
       ruby -e "
         require 'json'
         files = [ ]
@@ -18,7 +21,7 @@
         end
 
         puts files.to_json
-      " '{{ service|default({})|to_json }}'
+      " "$service"
   register: outs
 - set_fact:
     files: "{{ outs.stdout|from_json }}"
@@ -33,12 +36,14 @@
   with_items: "{{ files }}"
   when: item.source|default(False) and "git" in item.source
 
-- name: installs directories
+- name: sets ownership of repositories from git
   file:
-    state: directory
     path: "{{ item.path }}"
+    owner: "{{ item.owner|default('root') }}"
+    group: "{{ item.group|default('root') }}"
+    recurse: yes
   with_items: "{{ files }}"
-  when: item.source|default(False) and "directory" in item.source
+  when: item.source|default(False) and "git" in item.source
 
 - name: ensures target directories exist
   shell: |
@@ -57,6 +62,15 @@
   with_items: "{{ files }}"
   when: item.source|default(False) and "s3" in item.source
 
+- name: sets permissions on files from s3
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner|default('root') }}"
+    group: "{{ item.group|default('root') }}"
+    mode: "{{ item.mode|default('0644') }}"
+  with_items: "{{ files }}"
+  when: item.source|default(False) and "s3" in item.source
+
 - name: installs files via http
   get_url:
     url: "{{ item.source }}"
@@ -65,11 +79,23 @@
   with_items: "{{ files }}"
   when: item.source|default(False) and "http" in item.source
 
+- name: ensures file descriptor is present
+  file:
+    state: directory
+    path: "{{ item.path }}"
+    owner: "{{ item.owner|default('root') }}"
+    group: "{{ item.group|default('root') }}"
+    mode: "{{ item.mode|default('0644') }}"
+  with_items: "{{ files }}"
+  when: item.source|default(False) and "directory" in item.source
+
 - name: installs files from repository
   template:
-    src: "{{ role_path|dirname }}/{{ item.service }}/templates/{{ item.path}}"
+    src: "{{ role_path|dirname }}/casecommons.{{ item.service }}/templates/{{ item.path}}"
     dest: "{{ item.path }}"
     mode: "{{ item.mode|default(0644) }}"
     force: yes
+    owner: "{{ item.owner|default('root') }}"
+    group: "{{ item.group|default('root') }}"
   with_items: "{{ files }}"
   when: item.source is not defined

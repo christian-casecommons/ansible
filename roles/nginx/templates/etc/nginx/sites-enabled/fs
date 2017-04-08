@@ -1,0 +1,11 @@
+server {
+  listen {{ service.nginx.fs.port }};
+  server_name  {{ service.nginx.fs.host }};
+  error_log /var/log/nginx/fs.error.log;
+  access_log /var/log/nginx/fs.access.log;
+
+  location /get {
+    autoindex on;
+    root  {{ service.nginx.fs.root }};
+  }
+}
