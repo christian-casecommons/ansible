@@ -68,7 +68,7 @@ namespace :ansible do
     # write dynamic inventory to path or default
     content = %x{
       ./plugins/hieransible/ec2.py \
-        | HOSTS_FILE=./hosts ./plugins/hieransible/casecommons.rb --ini
+        | HOSTS_FILE=./hosts ./plugins/hieransible/inject.rb --ini
     }
 
     if $?.success?
