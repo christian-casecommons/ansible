@@ -78,6 +78,7 @@ namespace :ansible do
           mkdir -p `dirname $path` > /dev/null 2>&1
           cat $file | openssl \
             enc \
+            -base64 \
             -aes-256-cbc \
             -salt \
             -pass file:$key > $path
@@ -89,13 +90,14 @@ namespace :ansible do
         -encrypt \
         -inkey /etc/ssl/private/ansible.pem.public \
         -pubin > $key.encrypted
+
       rm $key
     }
   end
 
   desc "decrypts group_vars"
   task :decrypt do | _, arguments |
-    command %{
+    %x{
       rm -rf ./group_vars/*
       key=./group_vars_encrypted/key
       cat $key.encrypted | openssl \
@@ -104,12 +106,13 @@ namespace :ansible do
         -inkey /etc/ssl/private/ansible.pem.private \
           > $key
 
-      find ./group_vars_encrypted -type f | while read file
+      find ./group_vars_encrypted -type f ! -name 'key*' | while read file
         do
           path=`echo $file | sed 's/_encrypted//'`
           mkdir -p `dirname $path` > /dev/null 2>&1
           cat $file | openssl \
             enc \
+            -base64 \
             -d \
             -aes-256-cbc \
             -pass file:$key > $path
