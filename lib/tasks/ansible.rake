@@ -44,6 +44,59 @@ end
 ## tasks ##################################################
 
 namespace :ansible do
+  desc "encrypts group_vars"
+  task :encrypt do | _, arguments |
+    command %{
+      rm -rf group_vars_encrypted/*
+      key="#{ home }/group_vars_encrypted/key"
+      openssl rand -base64 128 -out $key
+
+      find #{ home }/group_vars -type f | while read file
+        do
+          path=`echo $file | sed 's/group_vars/group_vars_encrypted/'`
+          mkdir -p `dirname $path` > /dev/null 2>&1
+          cat $file | openssl \
+            enc \
+            -aes-256-cbc \
+            -salt \
+            -pass file:$key > $path
+      done
+
+      # finally encrypt key file
+      cat $key | openssl \
+        rsautl \
+        -encrypt \
+        -inkey /etc/ssl/private/ansible \
+        -pubin > $key.encrypted
+    }
+  end
+
+  desc "decrypts group_vars"
+  task :decrypt do | _, arguments |
+    command %{
+      rm -rf #{ home }/stack
+      key="#{ home }/.stack/key"
+      cat $key.encrypted | openssl \
+        rsautl \
+        -decrypt \
+        -inkey /etc/ssl/private/ansible \
+          > $key
+
+      find #{ home }/group_vars_encrypted -type f | while read file
+        do
+          path=`echo $file | sed 's/_encrypted//'`
+          mkdir -p `dirname $path` > /dev/null 2>&1
+          cat $file | openssl \
+            enc \
+            -d \
+            -aes-256-cbc \
+            -pass file:$key > $path
+      done
+
+      rm $key
+    }
+  end
+
   desc "shows hosts associatd to a group pattern"
   task :hosts, [ :pattern ] do | _, arguments |
     logs "looking up hosts", pattern: arguments[:pattern]

@@ -4,6 +4,9 @@
       curl https://www.loggly.com/install/configure-file-monitoring.sh \
         > /tmp/configure-file-monitoring
       bash -c "
-        configure-file-monitoring.sh \
+        /tmp/configure-file-monitoring.sh \
           -a {{ service.loggly.user }} \
-          -t {{ lookup('env', 'LOGGLY_TOKEN')}} -u callowaylc -f FILENAME -l ALIAS
+          -t {{ service.loggly.token }} \
+          -u {{ service.loggly.user }} \
+          -f {{ item.key }}
+      "
