@@ -1,3 +1,4 @@
 host_vars/*
 vendors/*
+.ansible/*
 hosts.compiled

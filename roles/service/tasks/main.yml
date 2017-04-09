@@ -1,0 +1,7 @@
+---
+- name: updates service states
+  service:
+    name: "{{ item.key }}"
+    state: "{{ item.value.state }}"
+  with_dict: "{{ service }}"
+  when: "{{ item.value.state is defined }}"

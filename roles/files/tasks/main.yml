@@ -91,7 +91,7 @@
 
 - name: installs files from repository
   template:
-    src: "{{ role_path|dirname }}/casecommons.{{ item.service }}/templates/{{ item.path}}"
+    src: "{{ role_path|dirname }}/{{ item.service }}/templates/{{ item.path}}"
     dest: "{{ item.path }}"
     mode: "{{ item.mode|default(0644) }}"
     force: yes

@@ -4,6 +4,7 @@ release:
 	bundle install
 	# ensure system directory exists and remove and previous
 	# symlinks
+	mkdir -p ./.ansible
 	mkdir -p ./host_vars
 	rm -rf ./host_vars/*
 

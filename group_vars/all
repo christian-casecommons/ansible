@@ -12,7 +12,10 @@ users:
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDArT76VybtzglrpqJilA8OTQNZ1NbdQxb1Z+KMiVVqp783P6FJd6veqGgfche4vHYo6yw2AUq2gNnKNmTqANx0Zu+hl+ydXbJS/NR14X3zj7QMAoE16zEfZdyqKm+AAtXZm/TmSCmDPH180pxgmdA12ZiaemIsU7aGMgeIZB/CMKcl/ZtM0Zao6gcsk+vjBOzE9GdSJNf7Jtu/ZLYXXucTFiGRUEf9rlbiBLZWWOhdm1VeecYjzVFjgUA5JhgSuIbUpla1n0jEQXQ37TruUABD2SOTXPCsOKUIZlgiz0z6k1AxBFDwSckHbfuiRg4stvQ7BlNxGP8mvfyCJw2WhlkfjCpLFkeWFk0YhWJ5NW4M3qtwVDhyyHjAgOozEc1xHx+OsSCvNCotuUOyuoMc/qP2Jbo5miUbLdU77cU88YlYk2oxViA81lnmy5oxBVjHt5AGLGfATXp7NNLKEcIC6ZjBM6iG3mFI1pLK/vzgSNm0mzmKgQSmHyQq/cloEnH3lCOkl3us800wb74Cx2zcW++uVH9UgHtPU5j+yptF4cHizPy22NwrDkBHa0gAr+6lcw/fwrwlP7LcGzMx/K6j7gR6oiu2W9m0kvFqB6Sja4pitcCJR1JZUg4RCUwSbjnnILw9HbHw7GQlz14yMXytN68FJCti3xaB7/WIDdX0wp4czw== github-callowaylc@work
 
 service:
+  loggly:
+    user: callowaylc
   nginx:
+    state: reloaded
     files:
       /var/www/fs:
         source: directory
