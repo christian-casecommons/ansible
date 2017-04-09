@@ -44,14 +44,35 @@ end
 ## tasks ##################################################
 
 namespace :ansible do
+
+  task :keys, [:path] do | _, arguments |
+    # creates symmetric keys required for encryption/decryption
+    # of secrets; do not execute this task once keys have been
+    # distrubted
+    %x{
+      openssl rsa \
+        -in #{ arguments[:path] } \
+        -outform PEM \
+        -pubout \
+        -out `dirname #{ arguments[:path] }`/`basename #{ arguments[:path] }`.pem.public
+
+      openssl rsa \
+        -in #{ arguments[:path] } \
+        -outform PEM \
+        -out `dirname #{ arguments[:path] }`/`basename #{ arguments[:path] }`.pem.private
+
+      ls -lhat #{ arguments[:path] }.pem* 1>/dev/stderr
+    }
+  end
+
   desc "encrypts group_vars"
   task :encrypt do | _, arguments |
-    command %{
-      rm -rf group_vars_encrypted/*
-      key="#{ home }/group_vars_encrypted/key"
+    %x{
+      rm -rf ./group_vars_encrypted/*
+      key=./group_vars_encrypted/key
       openssl rand -base64 128 -out $key
 
-      find #{ home }/group_vars -type f | while read file
+      find ./group_vars -type f | while read file
         do
           path=`echo $file | sed 's/group_vars/group_vars_encrypted/'`
           mkdir -p `dirname $path` > /dev/null 2>&1
@@ -66,23 +87,24 @@ namespace :ansible do
       cat $key | openssl \
         rsautl \
         -encrypt \
-        -inkey /etc/ssl/private/ansible \
+        -inkey /etc/ssl/private/ansible.pem.public \
         -pubin > $key.encrypted
+      rm $key
     }
   end
 
   desc "decrypts group_vars"
   task :decrypt do | _, arguments |
     command %{
-      rm -rf #{ home }/stack
-      key="#{ home }/.stack/key"
+      rm -rf ./group_vars/*
+      key=./group_vars_encrypted/key
       cat $key.encrypted | openssl \
         rsautl \
         -decrypt \
-        -inkey /etc/ssl/private/ansible \
+        -inkey /etc/ssl/private/ansible.pem.private \
           > $key
 
-      find #{ home }/group_vars_encrypted -type f | while read file
+      find ./group_vars_encrypted -type f | while read file
         do
           path=`echo $file | sed 's/_encrypted//'`
           mkdir -p `dirname $path` > /dev/null 2>&1
