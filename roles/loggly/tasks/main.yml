@@ -8,5 +8,6 @@
           -a {{ service.loggly.user }} \
           -t {{ service.loggly.token }} \
           -u {{ service.loggly.user }} \
+          -p {{ service.loggly.password }} \
           -f {{ item.key }}
       "

@@ -91,6 +91,11 @@ namespace :ansible do
         -inkey /etc/ssl/private/ansible.pem.public \
         -pubin > $key.encrypted
 
+      # change permissions to owner of this repository
+      u=$(
+        ls -lhat ./ | head -n2 | tail -n1 | awk '{ print $3 }'
+      )
+      chown -R $u ./group_vars_encrypted
       rm $key
     }
   end
@@ -118,6 +123,10 @@ namespace :ansible do
             -pass file:$key > $path
       done
 
+      u=$(
+        ls -lhat ./ | head -n2 | tail -n1 | awk '{ print $3 }'
+      )
+      chown -R $u ./group_vars
       rm $key
     }
   end
