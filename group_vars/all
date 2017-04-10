@@ -16,6 +16,10 @@ service:
     user: callowaylc
     token: 1db10840-5d95-4772-8e34-c72f231a5516
     password: fe5180zZ!%
+    files:
+      /opt/loggly/configure-file-monitoring.sh:
+        source: https://www.loggly.com/install/configure-file-monitoring.sh
+        mode: '0755'
   nginx:
     state: reloaded
     files:

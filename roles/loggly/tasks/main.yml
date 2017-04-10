@@ -1,13 +1,12 @@
 ---
 - name: adds watch to log
   shell: |
-      curl https://www.loggly.com/install/configure-file-monitoring.sh \
-        > /tmp/configure-file-monitoring
-      bash -c "
-        /tmp/configure-file-monitoring.sh \
+      echo "
+        /opt/loggly/configure-file-monitoring.sh \
           -a {{ service.loggly.user }} \
           -t {{ service.loggly.token }} \
           -u {{ service.loggly.user }} \
           -p {{ service.loggly.password }} \
           -f {{ item.key }}
-      "
+      " > /tmp/test
+  with_dict: "{{ log }}"
